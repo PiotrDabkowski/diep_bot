@@ -1,0 +1,14 @@
+{
+  "name": "diepbot",
+  "author": "Piotr Dabkowski",
+  "license": "CC BY-NC-SA",
+  "dependencies": {
+    "babel-preset-es2015": "^6.24.1",
+    "browserify": "^16.5.0",
+    "commander": "^3.0.0",
+    "events": "^3.0.0",
+    "readline-sync": "^1.4.10",
+    "uglify-js": "^3.6.0",
+    "ws": "^7.1.2",
+  }
+}

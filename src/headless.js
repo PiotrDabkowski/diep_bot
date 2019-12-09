@@ -117,12 +117,6 @@ function updateAllies() {
 
 function updateBots() {
     updateAllies()
-    for (let bot of bots) {
-        bot.master = master;
-        if (bot.master) {
-            bot.allies[bot.master.entityId] = 1
-        }
-    }
     setTimeout(updateBots, 330)
 }
 updateBots()
@@ -134,7 +128,10 @@ const wss = new WebSocket.Server({ port: 8080 });
 wss.on('connection', function connection(ws) {
   console.log("Got in connection!")
   ws.on('message', function incoming(message) {
-    master = JSON.parse(message)
+    let command = JSON.parse(message);
+    for (let bot of bots) {
+        bot.handleCommand(command);
+    }
   });
 });
 

@@ -26,8 +26,23 @@ const Bot = class {
         this.allies = {}
         this.aimlessTarget = {x: 0, y: 0}
         this.master = null
+        this.attackOn = true;
         this.id = 0
         this.numBots = 1
+    }
+
+    handleCommand(c) {
+        if (!c) {
+            return;
+        }
+        if (c.type === "master") {
+            this.master = c.target || null;
+            if (this.master) {
+                this.allies[this.master.entityId] = 1
+            }
+        } else if (c.type === "attack") {
+            this.attackOn = c.on;
+        }
     }
 
     setTankConfig(tankConfig) {
@@ -98,7 +113,7 @@ const Bot = class {
 
             Object.assign(inputPacket, this.ai.follow(master, tankConfig.avgTankSpeed, tankConfig.maxTankSpeed, 660, this.getAlliedEntitites()));
             let masterLook = this.ai.aimAt(tankConfig.bulletProfile, master)
-            if  (step - lastEnemySeen > 10) {
+            if  (step - lastEnemySeen > 10 && false) {
                 Object.assign(inputPacket, masterLook);
             } else {
                 // Avoid aiming at the master if recently shooting...
@@ -108,7 +123,9 @@ const Bot = class {
             if (targetLook && masterLook && dot(unitVecDiff(this.ai.ownTank, masterLook), unitVecDiff(this.ai.ownTank, targetLook)) < 0.77) {
                 lastEnemySeen = this.w.frame
                 Object.assign(inputPacket, targetLook);
-                inputPacket.key |= data.keyInput.LEFT_MOUSE
+                if (this.attackOn) {
+                    inputPacket.key |= data.keyInput.LEFT_MOUSE
+                }
             }
 
             return [inputPacket]
@@ -125,7 +142,9 @@ const Bot = class {
             } else {
                 Object.assign(inputPacket, this.ai.huntDown(target, tankConfig.bulletProfile, tankConfig.avgTankSpeed, tankConfig.maxTankSpeed, tankConfig.keepDist));
             }
-            inputPacket.key |= data.keyInput.LEFT_MOUSE
+            if (this.attackOn) {
+                inputPacket.key |= data.keyInput.LEFT_MOUSE
+            }
         } else {
             inputPacket = this.noTargetStrategy(inputPacket)
         }

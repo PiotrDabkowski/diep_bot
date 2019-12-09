@@ -1,7 +1,7 @@
 const { World } = require("./world.js");
 const  data = require("./data.js");
 const tank_ = require("./tank.js");
-const {AI} = require("./ai.js");
+const {AI, unitVecDiff, dot} = require("./ai.js");
 
 function getDefaultInputPacket() {
     return {
@@ -19,9 +19,20 @@ const Bot = class {
         }
         this.w = new World()
         this.ai = new AI(this.w)
+        this.setTankConfig(tankConfig);
+        this.spawned = false
+        // this.strategy = (inputPacket) => {return this.universalStrategy(inputPacket)}
+        this.strategy = this.getBodyguardStrategy()
+        this.allies = {}
+        this.aimlessTarget = {x: 0, y: 0}
+        this.master = null
+        this.id = 0
+        this.numBots = 1
+    }
+
+    setTankConfig(tankConfig) {
         this.tankConfig = tankConfig
         this.buildManager = new tank_.TankBuildManager(this.tankConfig)
-        this.spawned = false
     }
 
     reset() {
@@ -39,19 +50,74 @@ const Bot = class {
             },
             {
                 kind: data.outPacketKinds.SPAWN,
-                name: "Baby Bot <3",
+                name: "Guard",
             },
         ]
     }
 
     noTargetStrategy(inputPacket) {
-        Object.assign(inputPacket, {key: data.keyInput[Object.keys(data.directionKeys)[this.w.frame % 8]]})
+        // Object.assign(inputPacket, {key: data.keyInput[Object.keys(data.directionKeys)[this.w.frame % 8]]})
+        if (Math.random() < 5e-3 || this.aimlessTarget.x === 0) {
+            this.aimlessTarget = {x: (Math.random()-0.5)*5000, y: (Math.random()-0.5)*5000,}
+        }
+        Object.assign(inputPacket, this.ai.goto(this.aimlessTarget, 55, true, this.getAlliedEntitites()));
         return inputPacket
+    }
+
+    getAlliedEntitites() {
+        let res = []
+        for (let id of Object.keys(this.allies)) {
+            let cand = this.w.entities[id]
+            if (cand) {
+                res.push(cand)
+            }
+        }
+        return res
+    }
+
+    getBodyguardStrategy() {
+        if (this.tankConfig.ramming) {
+            throw "Rammer cannot be a body guard."
+        }
+        var step = 0
+        var lastEnemySeen = step
+        return (inputPacket) => {
+            step++;
+            if (!this.master) {
+                return this.universalStrategy(inputPacket)
+            }
+            inputPacket.key |= data.keyInput.LEFT_MOUSE
+            inputPacket.key ^= data.keyInput.LEFT_MOUSE
+            let tankConfig = this.tankConfig;
+
+            let masterId = this.master.entityId;
+            let master = this.w.entities.hasOwnProperty(masterId) ? this.w.entities[masterId] : this.master;
+
+            let target = this.w.getLowestEntity(data.entityTypes.TANK, this.allies)
+            let targetLook = this.ai.aimAt(tankConfig.bulletProfile, target)
+
+            Object.assign(inputPacket, this.ai.follow(master, tankConfig.avgTankSpeed, tankConfig.maxTankSpeed, 660, this.getAlliedEntitites()));
+            let masterLook = this.ai.aimAt(tankConfig.bulletProfile, master)
+            if  (step - lastEnemySeen > 10) {
+                Object.assign(inputPacket, masterLook);
+            } else {
+                // Avoid aiming at the master if recently shooting...
+                Object.assign(inputPacket, this.ai.lookAtAngle(masterLook, 180));
+
+            }
+            if (targetLook && masterLook && dot(unitVecDiff(this.ai.ownTank, masterLook), unitVecDiff(this.ai.ownTank, targetLook)) < 0.77) {
+                lastEnemySeen = this.w.frame
+                Object.assign(inputPacket, targetLook);
+                inputPacket.key |= data.keyInput.LEFT_MOUSE
+            }
+
+            return [inputPacket]
+        }
     }
 
     universalStrategy(inputPacket) {
         let oldKey = inputPacket.key || 0;
-        let target = this.w.getLowestEntity(data.entityTypes.TANK)
+        let target = this.w.getLowestEntity(data.entityTypes.TANK, this.allies)
         let tankConfig = this.tankConfig;
         if (target) {
             if (this.tankConfig.ramming) {
@@ -64,7 +130,7 @@ const Bot = class {
             inputPacket = this.noTargetStrategy(inputPacket)
         }
         inputPacket.key |= oldKey
-        return inputPacket
+        return [inputPacket]
     }
 
     // Only these 2 methods are public.
@@ -81,12 +147,20 @@ const Bot = class {
             return this.reset()
         }
         if (!this.buildManager.initDone) {
-            return this.buildManager.maybeGetInitPackets(this.w)
+            try {
+                return this.buildManager.maybeGetInitPackets(this.w)
+            } catch (e) {
+                return this.reset()
+            }
         }
         if (!this.w.checkAliveAndOk()) {
             return this.reset()
         }
-        return [this.universalStrategy(inputPacket)]
+        if (this.strategy) {
+            return this.strategy(inputPacket)
+        }
+        return [inputPacket]
+
     }
 }
 

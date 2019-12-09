@@ -1,7 +1,7 @@
 var data = require("./data.js")
 
-const config = {
-    entityTTL: 200,
+const worldConfig = {
+    entityTTL: 300,
     deleteDead: true
 }
 
@@ -62,15 +62,15 @@ const World = class {
         this.gardener()
     }
 
-    getLowestEntity(entityType) {
-        let id = this.getLowestEntityId(entityType)
+    getLowestEntity(entityType, except = {}) {
+        let id = this.getLowestEntityId(entityType, except)
         return id && this.entities[id]
     }
 
-    getLowestEntityId(entityType) {
+    getLowestEntityId(entityType, except = {}) {
         let id = null
         for (let key of Object.keys(this.entities)) {
-            if (this.entities[key].entityType === entityType) {
+            if (this.entities[key].entityType === entityType && !except.hasOwnProperty(key)) {
                 id = !id || key < id ? key : id
             }
         }
@@ -139,9 +139,9 @@ const World = class {
     deleteOld() {
         for (let entityId of Object.keys(this.entities)) {
             let ent = this.entities[entityId]
-            if (ent.stamp + config.entityTTL < this.stamp) {
+            if (ent.stamp + worldConfig.entityTTL < this.stamp) {
                 delete this.entities[entityId]
-            } else if (config.config && ent.health === 0) {
+            } else if (worldConfig.config && ent.health === 0) {
                 delete this.entities[entityId]
             }
         }
@@ -180,4 +180,4 @@ let a = {"1#15":{"entityId":"1#15","updateKind":2,"objAngle":25,"entityType":"UN
 let w = new World()
 w.entities = a
 w.inferOwnTank()
-module.exports = {World: World}
+module.exports = {World: World, worldConfig: worldConfig}

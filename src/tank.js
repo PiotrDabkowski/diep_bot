@@ -27,7 +27,7 @@ const sniperConfig = {
     reverseShoot: false,
     ramming: false,
     stat: [5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 4, 4, 4, 4, 4, 4, 4, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8],
-    seq: [100],
+    seq: [80],
     keepDist: 1100,
 }
 
@@ -42,7 +42,7 @@ const predatorConfig = {
     reverseShoot: false,
     ramming: false,
     stat: [5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 4, 4, 4, 4, 4, 4, 4, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8],
-    seq: [100, 78, 80],
+    seq: [80, 122, 100],
     keepDist: 1100,
 }
 
@@ -58,7 +58,7 @@ const dragonConfig = {
     reverseShoot: false,
     ramming: false,
     stat: [5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 3, 2, 3, 2, 3],
-    seq: [120, 122, 88],
+    seq: [76, 78, 108],
     keepDist: 100,
 }
 
@@ -73,7 +73,7 @@ const fighterConfig = {
     reverseShoot: false,
     ramming: false,
     stat: [5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 4, 4, 4, 4, 4, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8],
-    seq: [120, 122, 88],
+    seq: [76, 78, 108],
     keepDist: 800,
 }
 
@@ -88,7 +88,7 @@ const acConfig = {
     reverseShoot: false,
     ramming: false,
     stat: [5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 4, 4, 4, 4, 4, 4, 4, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8],
-    seq: [100, 126, 74],
+    seq: [80, 74, 126],
     isAC: true,
     keepDist: 1500,
 }
@@ -104,7 +104,7 @@ const aniRamConfig = {
     reverseShoot: true,
     ramming: true,
     stat: [2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 8, 8, 8, 8, 8, 8, 8, 7, 7, 7, 7, 7, 7, 7, 1, 1, 1, 1, 1],
-    seq: [102, 124, 10],
+    seq: [82, 72, 62],
 }
 
 function normAngle(angle) {
@@ -128,7 +128,7 @@ function getUnknownIdsWithAngle(world, angle, tolerance) {
 
 const TankBuildManager = class {
     constructor(tankConfig, sanboxMode = true) {
-        this.config = tankConfig
+        this.config = tankConfig || dragonConfig
         if (this.config.stat.length !== 33) {
             throw "Specify 33 upgrade stat points."
         }
@@ -150,6 +150,8 @@ const TankBuildManager = class {
     }
 
     maybeGetInitPackets(world) {
+        // console.log("Init stage", this.stage)
+
         switch (this.stage) {
             case 0:
                 // determine own tank id...
@@ -188,7 +190,7 @@ const TankBuildManager = class {
                     this.lastAngle = Math.random() * 2 * Math.PI
                     return [{
                         kind: data.outPacketKinds.INPUT,
-                        key: data.keyInput.INSTANT_UPGRADE,
+                        key: this.sanboxMode ? data.keyInput.INSTANT_UPGRADE : 0,
                         x: Math.cos(this.lastAngle) * 1000000,
                         y: Math.sin(this.lastAngle) * 1000000,
                     }]

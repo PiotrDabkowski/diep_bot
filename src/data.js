@@ -32,110 +32,69 @@ const entityTypes = {
     BOT: "BOT",
     OWN_TANK: "OWN_TANK",
     LEADER_TANK: "LEADER_TANK",
+    MASTER_TANK: "MASTER_TANK",
 }
 
 
-// TODO: auto type detection based on the packet dump. This should make the parser much more resistant to updates.
-const fieldIdToType = {
-    1: "vi",
-    2: "vi",
-    3: "vi",
+var fieldIdToType = { '1': 'vi',
+  '2': 'vi',
+  '3': 'vi',
+  '5': 'float',
+  '8': 'vi',
+  '13': 'vi',
+  '17': 'vi',
+  '18': 'float',
+  '19': 'vi',
+  '22': 'float',
+  '23': 'float',
+  '25': 'float',
+  '26': 'float',
+  '30': 'float',
+  '31': 'float',
+  '37': 'vi',
+  '45': 'float',
+  '49': 'float',
+  '55': 'float',
+}
+// From sandbox.
+Object.assign(fieldIdToType, { '1': 'vi',
+  '2': 'vi',
+  '3': 'vi',
+  '5': 'float',
+  '8': 'vi',
+  '13': 'vi',
+  '17': 'vi',
+  '19': 'vi',
+  '21': 'float',
+  '22': 'float',
+  '23': 'float',
+  '24': 'i32',
+  '25': 'float',
+  '26': 'float',
+  '30': 'float',
+  '31': 'float',
+  '37': 'vi',
+  '45': 'float',
+  '49': 'float',
+  '50': 'float',
+  '53': 'vi',
+  '55': 'float',
+  '58': 'vi',
+  '59': 'vi',
+  '68': 'float' }
+)
 
-    23: "float",
-    66: "float",
 
-    18: "float",
-    44: "float",
-    64: "float",  // confident, bullet x/y?
-    65: "float",  // confident, bullet x/y?
-    29: "float",  // confident, counter for ffa, on THIS player
-
-    19: "vu", // some weird byte fields
-    57: "vu", // some weird byte fields
-
-    20: "float",  // mostly confident, player exp
-    35: "float",  // mostly confident, max life
-
-    37: "float",  // time alive of other player?
-    28: "float",  // time alive of THIS player?
-
-    //10: 'i8',  // something about this player, not sure what...
-
-    // These params are related to the leveling up process of THIS tank.
-    25: "vi", // int goes up by 1 to 33. mass, field of view?
-    26: "float", // ???
-    27: "float", // ???
-    31: "float", // goes down from low value of ~2 to ~1, speed?
-    38: 'vi', // level most likely
-    39: 'float', // this player exp
-    59: 'float', // goes up, mass? field of view? idk
-
-    // ??? wtf, rare and not sure what
-    63: 'vu',
-    67: 'vu',
-    // Unsolved: 8, 10, 14, 41, 53
-    53: 'vu',
-
-    //  14: 'i8'
-    //  15: "vu",
-    //  42: "vu",
-    // // 41: "vu",
-
-    // 55: '',
-    // // // ????
-    // // 37: "float",              
-    // //
-    // // 65: "float",
-    // //
-    // // //19: "i8",
-    // // 8: "vu",
-    // // 63: "vi",
-    // // 29: "i32",
-    // 19: 'vu',  // ?? important but unknown vu or i32? some large shitty number
-    // 57: 'vu',     // triggered by 19
-    // 28: "float",
-    // 65: "float",
-    // 20: "float",  // confident
-    // 35: "float",  // confident
-    //53: "vu",   // flag-like, similar to 55 but relates to other agents/objects?
-    // 55: "i32", // flag-like, related to agent ITSELF, 10 is also kind of similar
+// Just these fields are needed...
+var fieldNameToId = {
+    // agentPosX2: 26,
+    // agentPosY2: 30,
+    objPosX: 1,
+    objPosY: 2,
+    objAngle: 3
 }
 
-// This map serves just for the packet interpretation, not parsing.
-const fieldNameToId = {
-    // Object Properties
-    objPosX: 3,
-    objPosY: 1,
-    objAngle: 2,
-    // // Agent Properties
-    agentPosX: 66,
-    agentPosY: 23,
-    agentPosX2: 18,
-    agentPosY2: 44,
 
-    fade: 64, //
-    opacity: 65, // for example for stalker, shape death etc...
-
-    counter: 29, //  Not in sandbox, present on the 1#0 agent.
-
-    weirdBytes1: 19, // Not sure what they signify, likely they refer to the agent upgrades?
-    weirdBytes2: 29,
-
-    expPointsOthert: 20, // current exp of (another) player ?
-    maxHealth: 35,
-    health: 37,  // (1#15)
-    timeAliveThis: 28,
-
-    tankMass: 25,  // not sure here
-    // unk1: 26,
-    // unk2: 27,
-    tankSpeed: 31,
-    tankLevel: 38,
-    expPointsThis: 39,
-
-
-    // 54 (1#14) and 15 (1#0) are tank upgrades possibly also 9 (1#14). 41 is a death (1#14)
-}
 
 var fieldIdToName = {}
 for (let k of Object.keys(fieldNameToId)) {

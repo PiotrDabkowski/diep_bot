@@ -1,4 +1,4 @@
-require('browserify')('./src/ext.js').bundle(function (err, data) {
+require('browserify')('./src/triangle_ext.js').bundle(function (err, data) {
     if (err) {
         throw new Error(err);
     }

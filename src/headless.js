@@ -1,14 +1,18 @@
-const { WSConnection } = require('./connection')
+const { WSConnection, linkParse, getDiepWSParams } = require('./connection')
 const data = require('./data.js')
 const { Bot } = require('./bot.js')
 const { Parser } = require('./parser.js')
 const tank_ = require("./tank.js");
+const WebSocket = require('ws')
 
 const program = require('commander');
 
 program
   .option('-p, --party <value>', 'Your diep.io sandbox party link (eg: diep.io/#93D64747001AF89EF02920)')
   .option('-t, --tank <value>', 'One of supported tank types: ' + Object.keys(tank_.tankTypes).join(', '))
+  .option('-b, --body <value>', 'Bodyguard mode entity id')
+  .option('-n, --num <value>', 'Number of bots', 1)
+
 
 
 program.parse(process.argv);
@@ -27,52 +31,111 @@ if (!tank_.tankTypes.hasOwnProperty(program.tank)) {
 
 console.log(program);
 
-wsFromId = id => `wss://${id}.s.m28n.net`
+var addressPool = [
+    null,
+    "2a05:d012:2f6:a100:1075:c087:f048:d311",
+    "2a05:d012:2f6:a100:f13e:1af3:d3d1:44d1"
+]
 
-let linkParse = link => {
-    let match = link.match(/diep\.io\/#(([0-9A-F]{2})+)/)
-    if (!match) return null
-    let data = match[1].split('')
-    let source = 'diep.io/#'
-    let id = ''
-    while (true) {
-        let lower = data.shift()
-        source += lower
-        let upper = data.shift()
-        source += upper
-        let byte = parseInt(lower, 16) + parseInt(upper, 16) * 16
-        if (!byte) break
-        id += String.fromCharCode(byte)
-    }
-    let ws = wsFromId(id)
-    return { id, party: data.join(''), source, ws }
-}
-
+// 2 connections allowed per IP.
+addressPool = addressPool.concat(addressPool)
 
 let serverInfo = linkParse(program.party)
-let ws = new WSConnection(serverInfo.ws, {ip: 2, release: ()=>{}})
 
-let bot = new Bot(true, tank_.tankTypes[program.tank])
+function getDiepBot(serverInfo) {
+    if (addressPool.length == 0) {
+        console.log('run out of addresses');
+        return null;
+    }
+    let ipv6 = addressPool.shift();
+    let ws = new WSConnection(serverInfo.ws, getDiepWSParams(serverInfo.ws, ipv6))
 
-ws.on('open', () => {
-    ws.send({kind: data.outPacketKinds.HEARTBEAT})
-    ws.send({kind: data.outPacketKinds.INIT, unk1: '', unk2: '', build: '262dc9877a9ae20ee80991d37da301dc856b33dd', partyId: serverInfo.party})
-    setTimeout(inputLoop, 25)
-})
+    let bot = new Bot(true, tank_.tankTypes[program.tank])
+    bot.running = true
+    bot.ws = ws;
+    if (program.body) {
+        bot.strategy = bot.getBodyguardStrategy(program.body)
+    }
+    ws.on('open', () => {
+        ws.send({kind: data.outPacketKinds.HEARTBEAT})
+        ws.send({kind: data.outPacketKinds.INIT, unk1: '', unk2: '', build: '5d3c85aad8642f8b14ad7cfa43a007b4a9b15c8a', partyId: serverInfo.party})
+        setTimeout(inputLoop, 25)
+    })
 
-function inputLoop() {
-    ws.multiSend(bot.getOutPackets())
-    setTimeout(inputLoop, 25)
+    function inputLoop() {
+        ws.multiSend(bot.getOutPackets())
+        setTimeout(inputLoop, 25)
+    }
+
+    ws.on('message', (buffer) => {
+        try {
+            let p = new Parser(buffer)
+            bot.worldUpdate(p.parseInbound())
+            // console.log(bot.w.entities)
+        } catch (e) {
+            // About 5% of packets the parser currently fails to parse.
+            // Not the issue though, this happens rare enough and does not affect the performance much.
+            // We are able to correct for missed data.
+        }
+    })
+
+    ws.on("error", () => {
+        console.log("errors...")
+    })
+
+    ws.on("close", () => {
+        bot.running = false
+        addressPool.push(ipv6)
+        console.log("conf close")
+    })
+
+
+    return bot
 }
 
-ws.on('message', (buffer) => {
-    try {
-        let p = new Parser(buffer)
-        bot.worldUpdate(p.parseInbound())
-    } catch (e) {
-        // About 5% of packets the parser currently fails to parse.
-        // Not the issue though, this happens rare enough and does not affect the performance much.
-        // We are able to correct for missed data.
+
+let bots = []
+for (let i = 0; i < +program.num; i++) {
+    bot = getDiepBot(serverInfo)
+    bot.id = i;
+    bot.numBots = +program.num
+    bots.push(bot)
+}
+
+var master = null
+
+function updateAllies() {
+    let allies = {}
+    for (let bot of bots) {
+        let id = bot.ai.ownTank;
+        if (id) {
+            allies[id.entityId] = 1
+        }
+        bot.allies = allies
     }
-})
+}
+
+function updateBots() {
+    updateAllies()
+    for (let bot of bots) {
+        bot.master = master;
+        if (bot.master) {
+            bot.allies[bot.master.entityId] = 1
+        }
+    }
+    setTimeout(updateBots, 330)
+}
+updateBots()
+
+
+// Server
+const wss = new WebSocket.Server({ port: 8080 });
+
+wss.on('connection', function connection(ws) {
+  console.log("Got in connection!")
+  ws.on('message', function incoming(message) {
+    master = JSON.parse(message)
+  });
+});
+
 

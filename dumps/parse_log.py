@@ -1,4 +1,4 @@
-with open('/Users/piotrdabkowski/PycharmProjects/ava/toy/pydiep/shoot.raw.log') as f:
+with open('/Users/piotrdabkowski/PycharmProjects/pydiep/dumps/v2/sandbox.raw.log') as f:
     lines = f.readlines()
 
 res = []
@@ -18,7 +18,7 @@ while i < len(lines):
             res.append(b.strip())
             break
 
-with open('shoot.log', 'w') as f:
-    f.write('\n'.join(res))
+with open('v2/sandbox.log', 'w') as f:
+    f.write('\n'.join([e for e in res if e != '05']))
 
 

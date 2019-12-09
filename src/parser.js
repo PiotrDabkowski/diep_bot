@@ -104,7 +104,7 @@ const Parser = class {
         // The error could be the result of the parsing error at the earlier position.
         let info = `Error at pos ${this.at}: ${msg}`
         if (payload !== 'tolerate') {
-            console.log(info)
+              // console.log(info)
         }
         let err = new Error(info)
         err.payload = payload
@@ -165,7 +165,7 @@ const Parser = class {
             y: this.vf(),
         }
         if (!this.isEOF()) {
-            console.log("Unexpected end of output 'input' packet.")
+            // console.log("Unexpected end of output 'input' packet.")
         }
         this.assertEOF()
         return res
@@ -332,7 +332,7 @@ const Parser = class {
         var upcreates = []
         for (var i = 0; i < num_upcreates; i++) {
             if (this.isEOF()) {
-                console.log('unexpected eof...')
+                // console.log('unexpected eof...')
                 break
             }
             upcreates.push(this.entityUpcreate())

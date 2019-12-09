@@ -3,6 +3,7 @@ const tank_ = require("./tank.js");
 var {Parser} = require("./parser.js");
 const {Encoder} = require("./encoder.js");
 const { Bot } = require("./bot.js")
+const { inject } = require("./injection.js")
 
 
 // Select a tank.
@@ -28,6 +29,7 @@ function handleRecvData(buffer) {
         // Not the issue though, this happens rare enough and does not affect the performance much.
         // We are able to correct for missed data.
     }
+    return buffer
 }
 
 function sendPackets(wsInstance, packets) {
@@ -55,33 +57,4 @@ function handleSendData(buffer) {
 
 // -----------------
 // WS Injection.
-var wsInstances = new Set();
-var proxiedSend = window.WebSocket.prototype.send;
-
-window.WebSocket.prototype.send = function (data_) {
-    // Data is provided as the UInt8 view, any kind of buffer or view can be returned.
-    let data = new Uint8Array(data_)
-    if (!wsInstances.has(this)) {
-        console.log("Hello: New WebSocket is being used.")
-        wsInstances.add(this);
-        var inst = this;
-        var proxiedRecv = inst.onmessage;
-        this.onmessage = function (event) {
-            event.data = handleRecvData.call(this, new Uint8Array(event.data));
-            if (event.data) {
-                return proxiedRecv.call(this, event);
-            }
-        };
-    }
-    try {
-        data = handleSendData.call(this, data);
-    }
-    catch (e) {
-        console.log(e)
-    }
-    if (data) {
-        return proxiedSend.call(this, data);
-    }
-};
-
-console.log('ok')
+var proxiedSend = inject(handleRecvData, handleSendData);

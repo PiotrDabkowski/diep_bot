@@ -47,7 +47,7 @@ AI = class {
     get ownTank() {
         let ownTank = this.w.getLowestEntity(data.entityTypes.OWN_TANK)
         if (!ownTank) {
-            console.log("Cannot find own tank")
+            // console.log("Cannot find own tank")
             return null
         }
         return ownTank
@@ -101,7 +101,7 @@ AI = class {
         let x = dot(toVec(Math.cos(rotation), -Math.sin(rotation)), unitDirection)
         let y = dot(toVec(Math.sin(rotation), Math.cos(rotation)), unitDirection)
         if (isNaN(x) || isNaN(y)) {
-            console.log("No position data for target")
+            // console.log("No position data for target")
             return null
         }
         return toVec(ownTank.x + x*fixationDistance, ownTank.y + y*fixationDistance)
@@ -112,6 +112,8 @@ AI = class {
     aimAt(bulletProfile, entity) {
         let ownTank = this.ownTank
         if (!ownTank) return null;
+        if (!entity) return null;
+
         let delta = diff(ownTank, entity)
         let deltaL2 = l2(delta)
         // linear interpolation
@@ -120,7 +122,7 @@ AI = class {
         let entPerpComponent = dot(unitDeltaPerp, velocity(entity))
         if (entPerpComponent > bs * 0.9) {
             // impossible to hit the entity with the provided bullet speed
-            console.log('hit impossible')
+            // console.log('hit impossible')
             return null
         }
         let directComponent = Math.sqrt(Math.pow(bs, 2) - Math.pow(entPerpComponent, 2))
@@ -130,32 +132,45 @@ AI = class {
             y: entity.y + offset * unitDeltaPerp.y,
         }
         if (isNaN(res.x) || isNaN(res.y)) {
-            console.log("No position data for target")
+            // console.log("No position data for target")
             return null
         }
-        console.log(`DIS: ${deltaL2.toFixed(2)} BS ${bs.toFixed(2)} ES ${entity.speed.toFixed(2)} PS ${entPerpComponent.toFixed(2)} EV ${[entity.dx.toFixed(2), entity.dy.toFixed(2)]} PV ${[unitDeltaPerp.x.toFixed(2), unitDeltaPerp.y.toFixed(2)]} O: ${offset.toFixed(2)}`)
+        // console.log(`DIS: ${deltaL2.toFixed(2)} BS ${bs.toFixed(2)} ES ${entity.speed.toFixed(2)} PS ${entPerpComponent.toFixed(2)} EV ${[entity.dx.toFixed(2), entity.dy.toFixed(2)]} PV ${[unitDeltaPerp.x.toFixed(2), unitDeltaPerp.y.toFixed(2)]} O: ${offset.toFixed(2)}`)
         return res;
     }
 
     // Smart goto with a feedback loop. The allowOvershoot can be set to false if we want to stop exactly at the target.
     // Otherwise, the tank may pass through the target due to momentum.
-    goto(target, desiredSpeed = 55, allowOvershoot = true) {
+    goto(target, desiredSpeed = 55, allowOvershoot = true, avoid = []) {
         if (!target) return null;
         let ownTank = this.ownTank
         if (!ownTank) return null;
         //
         // console.log(`${dbgVec(ownTank)} ->  ${dbgVec(target)} @ SPEED ${ownTank.speed.toFixed(2)}`)
 
-        let direction = diff(ownTank, target)
+        let direction = diff(ownTank, target);
         let dist = l2(direction)
         let directionUnit = toUnit(direction)
         // if no overshoot allowed, use proportional controller, start slowing down at 10 grid away (500)
         let speedFactor = allowOvershoot ? 1 : Math.min(dist / 500, 1)
         let speed = speedFactor*desiredSpeed;
         let targetVelocity = toVec(speed*directionUnit.x, speed*directionUnit.y)
-        let deltaVelocityRequest = diff(velocity(ownTank), targetVelocity)
+        let deltaVelocityRequest = toUnit(diff(velocity(ownTank), targetVelocity))
+        const desiredAvoidDist = 550.;
+        const penaltyFactor = 2.5;
+        var penaltyVec = toVec(0., 0.);
+        for (let obj of avoid) {
+            let d = diff(obj, ownTank);
+            let du = toUnit(d)
+            let ds = l2(d);
+            let penalty = Math.max(penaltyFactor*(desiredAvoidDist - ds) / desiredAvoidDist, 0.);
+            if (penalty) {
+                penaltyVec = toVec(penaltyVec.x + penalty*du.x, penaltyVec.y + penalty*du.y)
+            }
+        }
+        deltaVelocityRequest = toVec(deltaVelocityRequest.x + penaltyVec.x, deltaVelocityRequest.y + penaltyVec.y)
         if (isNaN(deltaVelocityRequest.x) || isNaN(deltaVelocityRequest.y)) {
-            console.log("No position for target")
+            // console.log("No position for target")
             return null
         }
         // just select the direction that has the highest dot product with the delta velocity request
@@ -189,14 +204,10 @@ AI = class {
         return result
     }
 
-    huntDown(target, bulletProfile, avgTankSpeed, maxTankSpeed, keepDistance) {
+    follow(target, avgTankSpeed, maxTankSpeed, keepDistance, avoid = []) {
         if (!target) return null;
         let ownTank = this.ownTank
         if (!ownTank) return null;
-
-        // Point that we want to hit with a bullet.
-        let hitPoint = this.aimAt(bulletProfile, target)
-
         // Point where we want to walk to with tank.
         let walkPoint = this.aimAt({max: avgTankSpeed, min: avgTankSpeed, range: 10}, target)
         if (!walkPoint) {
@@ -205,10 +216,20 @@ AI = class {
         }
         let distance = dist(target, ownTank)
         walkPoint = this.lookAtAngle(walkPoint, 0, distance - keepDistance)
-        let movement = this.goto(walkPoint, maxTankSpeed, false)
+        return this.goto(walkPoint, maxTankSpeed, false, avoid)
+
+    }
+
+    huntDown(target, bulletProfile, avgTankSpeed, maxTankSpeed, keepDistance) {
+        if (!target) return null;
+        let ownTank = this.ownTank
+        if (!ownTank) return null;
+
+        // Point that we want to hit with a bullet.
+        let hitPoint = this.aimAt(bulletProfile, target)
 
         let result = {}
-        Object.assign(result, movement)
+        Object.assign(result, this.follow(target, avgTankSpeed, maxTankSpeed, keepDistance));
         Object.assign(result, hitPoint)
         return result
     }
@@ -218,4 +239,4 @@ AI = class {
     }
 }
 
-module.exports = {AI: AI}
+module.exports = {AI: AI, unitVecDiff, dot}

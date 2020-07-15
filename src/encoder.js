@@ -117,6 +117,7 @@ const Encoder = class {
     encodeSpawn(packet) {
         return this.vu(packet.kind).string(packet.name).out()
     }
+    
     encodeUpdateStat(packet) {
         return this.vu(packet.kind).vu(packet.statId).vu(packet.upto).out()
     }
@@ -124,7 +125,6 @@ const Encoder = class {
     encodeUpdateTank(packet) {
         return this.vu(packet.kind).vu(packet.tankId).out()
     }
-
 }
 
 

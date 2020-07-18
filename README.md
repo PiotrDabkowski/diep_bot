@@ -1,5 +1,7 @@
 ### Fully autonomous Diep.io bot
 
+Some YouTube videos showing bots in action: [by me](https://www.youtube.com/watch?v=msi5ATiln3U), [by another player](https://www.youtube.com/watch?v=DzugOGdx518).
+
 Supports few tanks: AC, Fighter, Ram Ani, Dragon, Sniper, Predator.
 Automatically aims and follows the enemy. Does not dodge the bullets yet, though.
 
@@ -17,10 +19,12 @@ Note: you can have at most 2 diep.io connections per ip. This can be bypassed by
 
 #### Limitations
 
-I have not fully deciphered the 0x00 packet, but I am able to fully parse ~98% of them 
-so the bot is able to play properly. Field 55 is the biggest issue (more than 80% of remaining packets) 
-and seems to describe the event of shape/agent destruction by a player. Most of the create sequences are 
-supported as well.
+NOTE: THIS IS JUST PART OF THE FULL BOT REPO THAT I DECIDED TO MAKE PUBLIC. THE WORKING BOT (AS SEEN IN YT VIDEOS) IS PRIVATE FOR SAFETY REASONS. THIS REPO IS FOR ILLUSTRATIVE PURPOSES.
+
+This bot still works, but is much less inteligent and the parser needs to be updated (due to the field updates).
+
+I have not fully deciphered the 0x00 packet, but I am able to fully parse ~99.5% of them 
+so the bot is able to play properly. 
 
 An example of 0x00 packet:
 
@@ -108,8 +112,7 @@ console.log(parser.parseInbound())
        objPosX: 7350 } ] })
 ```
  
-The 0x02 packet (compressed) is not supported so the bot will be a bit clueless when there are
-tons of bullets around. It should not be hard to add the 0x02 support though.
+
 
  Credits go to CX for his [original work](https://github.com/cx88/diepssect) on the diep.io packet 
  reverse engineering. Some of his code has been borrowed here.
